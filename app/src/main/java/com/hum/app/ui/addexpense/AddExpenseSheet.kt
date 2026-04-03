@@ -58,6 +58,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Person
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hum.app.data.model.RecurringType
@@ -78,6 +79,60 @@ fun AddExpenseSheet(
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+
+    if (uiState.showAddCategoryDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.hideAddCategoryDialog() },
+            title = { Text("New Category") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Enter a category name. AI will pick the best icon.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = uiState.newCategoryName,
+                        onValueChange = viewModel::updateNewCategoryName,
+                        label = { Text("Category name") },
+                        placeholder = { Text("e.g. Groceries, Gym, Pet Care") },
+                        singleLine = true,
+                        enabled = !uiState.isResolvingIcon,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Words,
+                            imeAction = ImeAction.Done
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (uiState.isResolvingIcon) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Text(
+                                text = "Finding the perfect icon…",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.addCustomCategory() },
+                    enabled = uiState.newCategoryName.isNotBlank() && !uiState.isResolvingIcon
+                ) { Text("Add") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.hideAddCategoryDialog() },
+                    enabled = !uiState.isResolvingIcon
+                ) { Text("Cancel") }
+            }
+        )
+    }
 
     val calendar = remember(uiState.date) {
         Calendar.getInstance().apply { time = uiState.date }
@@ -219,6 +274,18 @@ fun AddExpenseSheet(
                         onClick = { viewModel.updateCategory(cat) }
                     )
                 }
+                FilterChip(
+                    selected = false,
+                    onClick = { viewModel.showAddCategoryDialog() },
+                    label = { Text("+ Add New", fontSize = 13.sp) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
             }
 
             if (uiState.familyMembers.size > 1) {

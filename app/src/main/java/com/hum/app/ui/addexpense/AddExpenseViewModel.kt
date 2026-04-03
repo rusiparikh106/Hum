@@ -9,6 +9,7 @@ import com.hum.app.data.model.CategoryEntity
 import com.hum.app.data.model.Expense
 import com.hum.app.data.model.RecurringType
 import com.hum.app.data.model.User
+import com.hum.app.data.ai.CategoryIconAi
 import com.hum.app.data.repository.AuthRepository
 import com.hum.app.data.repository.CategoryRepository
 import com.hum.app.data.repository.ExpenseRepository
@@ -32,6 +33,9 @@ data class AddExpenseUiState(
     val title: String = "",
     val categories: List<CategoryEntity> = emptyList(),
     val selectedCategory: CategoryEntity? = null,
+    val showAddCategoryDialog: Boolean = false,
+    val newCategoryName: String = "",
+    val isResolvingIcon: Boolean = false,
     val date: Date = Date(),
     val paidByUserId: String = "",
     val paidByUserName: String = "",
@@ -50,6 +54,7 @@ data class AddExpenseUiState(
 class AddExpenseViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
     private val categoryRepository: CategoryRepository,
+    private val categoryIconAi: CategoryIconAi,
     private val authRepository: AuthRepository,
     private val familyRepository: FamilyRepository,
     private val auth: FirebaseAuth
@@ -139,6 +144,69 @@ class AddExpenseViewModel @Inject constructor(
 
     fun updateNotes(value: String) {
         _uiState.value = _uiState.value.copy(notes = value)
+    }
+
+    fun showAddCategoryDialog() {
+        _uiState.value = _uiState.value.copy(
+            showAddCategoryDialog = true,
+            newCategoryName = "",
+            isResolvingIcon = false
+        )
+    }
+
+    fun hideAddCategoryDialog() {
+        _uiState.value = _uiState.value.copy(
+            showAddCategoryDialog = false,
+            newCategoryName = "",
+            isResolvingIcon = false
+        )
+    }
+
+    fun updateNewCategoryName(name: String) {
+        _uiState.value = _uiState.value.copy(newCategoryName = name)
+    }
+
+    fun addCustomCategory() {
+        val name = _uiState.value.newCategoryName.trim()
+        if (name.isBlank()) {
+            _uiState.value = _uiState.value.copy(error = "Enter a category name")
+            return
+        }
+
+        val existing = _uiState.value.categories.find {
+            it.label.equals(name, ignoreCase = true) ||
+                it.name.equals(name.uppercase().replace("\\s+".toRegex(), "_"), ignoreCase = true)
+        }
+        if (existing != null) {
+            _uiState.value = _uiState.value.copy(
+                selectedCategory = existing,
+                showAddCategoryDialog = false,
+                newCategoryName = ""
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isResolvingIcon = true)
+
+            val icon = categoryIconAi.suggestIcon(name)
+
+            categoryRepository.addCategory(name = name, label = name, icon = icon)
+                .onSuccess { newCategory ->
+                    _uiState.value = _uiState.value.copy(
+                        selectedCategory = newCategory,
+                        showAddCategoryDialog = false,
+                        newCategoryName = "",
+                        isResolvingIcon = false
+                    )
+                }
+                .onFailure { e ->
+                    _uiState.value = _uiState.value.copy(
+                        isResolvingIcon = false,
+                        error = e.message ?: "Failed to create category"
+                    )
+                }
+        }
     }
 
     fun saveExpense() {

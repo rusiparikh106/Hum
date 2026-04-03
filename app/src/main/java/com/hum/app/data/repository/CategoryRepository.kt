@@ -67,6 +67,20 @@ class CategoryRepository @Inject constructor(
             )
         }
 
+    suspend fun addCategory(name: String, label: String, icon: String): Result<CategoryEntity> = runCatching {
+        val docName = name.uppercase().replace("\\s+".toRegex(), "_")
+        val doc = collection.document(docName)
+        val count = try { collection.get().await().size() } catch (_: Exception) { 100 }
+        val entity = CategoryEntity(
+            name = docName,
+            label = name.trim(),
+            icon = icon,
+            sortOrder = count
+        )
+        doc.set(entity).await()
+        entity.copy(id = docName)
+    }
+
     suspend fun ensureCategoryExists(name: String, label: String, icon: String) {
         try {
             val doc = collection.document(name)
