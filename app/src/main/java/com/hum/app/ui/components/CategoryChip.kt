@@ -1,19 +1,17 @@
 package com.hum.app.ui.components
 
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.hum.app.data.model.Category
+import com.hum.app.data.model.CategoryEntity
 
 @Composable
 fun CategoryChip(
-    category: Category,
+    category: CategoryEntity,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier

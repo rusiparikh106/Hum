@@ -75,9 +75,22 @@ expenses/{expenseId}
   └── updatedAt: Timestamp
 ```
 
+### Collection: `categories`
+```
+categories/{categoryName}
+  ├── name: String              // e.g. "FOOD" (matches document ID)
+  ├── label: String             // e.g. "Food"
+  ├── icon: String              // e.g. "🍕"
+  ├── sortOrder: Int            // display ordering (0-based)
+  └── createdAt: Timestamp
+```
+Default categories are seeded on first use: FOOD, TRANSPORT, UTILITIES, RENT, MEDICAL, SHOPPING, ENTERTAINMENT, OTHER.
+When a new expense is saved, the selected category is ensured to exist in this master table.
+
 ### Firestore Rules (Summary)
 - Users can read/write their own `users` doc.
 - Family members can read/write their `families` doc and all `expenses` where `familyId` matches.
+- Authenticated users can read the `categories` master table; writes are allowed to create new entries.
 - Invite code lookup is allowed for authenticated users.
 
 ---
@@ -161,11 +174,13 @@ com.hum.app
   │   ├── model/              # Data classes matching Firestore docs
   │   │   ├── User.kt
   │   │   ├── Family.kt
-  │   │   └── Expense.kt
+  │   │   ├── Expense.kt
+  │   │   └── CategoryEntity.kt
   │   └── repository/
   │       ├── AuthRepository.kt
   │       ├── FamilyRepository.kt
-  │       └── ExpenseRepository.kt
+  │       ├── ExpenseRepository.kt
+  │       └── CategoryRepository.kt
   ├── ui/
   │   ├── theme/
   │   │   ├── Color.kt
@@ -262,6 +277,12 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/families/$(resource.data.familyId)) &&
         request.auth.uid in get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.memberIds;
       allow create: if request.auth != null;
+    }
+
+    match /categories/{categoryId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
     }
   }
 }

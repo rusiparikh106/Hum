@@ -60,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material.icons.filled.Person
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.hum.app.data.model.Category
 import com.hum.app.data.model.RecurringType
 import com.hum.app.ui.components.CategoryChip
 import java.text.SimpleDateFormat
@@ -213,10 +212,10 @@ fun AddExpenseSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Category.entries.forEach { cat ->
+                uiState.categories.forEach { cat ->
                     CategoryChip(
                         category = cat,
-                        selected = uiState.category == cat,
+                        selected = uiState.selectedCategory?.name == cat.name,
                         onClick = { viewModel.updateCategory(cat) }
                     )
                 }

@@ -5,10 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.hum.app.data.model.Category
+import com.hum.app.data.model.CategoryEntity
 import com.hum.app.data.model.Expense
 import com.hum.app.data.model.RecurringType
 import com.hum.app.data.model.User
 import com.hum.app.data.repository.AuthRepository
+import com.hum.app.data.repository.CategoryRepository
 import com.hum.app.data.repository.ExpenseRepository
 import com.hum.app.data.repository.FamilyRepository
 import com.hum.app.util.Constants
@@ -28,7 +30,8 @@ import javax.inject.Inject
 data class AddExpenseUiState(
     val amount: String = "",
     val title: String = "",
-    val category: Category = Category.OTHER,
+    val categories: List<CategoryEntity> = emptyList(),
+    val selectedCategory: CategoryEntity? = null,
     val date: Date = Date(),
     val paidByUserId: String = "",
     val paidByUserName: String = "",
@@ -46,6 +49,7 @@ data class AddExpenseUiState(
 @HiltViewModel
 class AddExpenseViewModel @Inject constructor(
     private val expenseRepository: ExpenseRepository,
+    private val categoryRepository: CategoryRepository,
     private val authRepository: AuthRepository,
     private val familyRepository: FamilyRepository,
     private val auth: FirebaseAuth
@@ -58,7 +62,23 @@ class AddExpenseViewModel @Inject constructor(
     val uiState: StateFlow<AddExpenseUiState> = _uiState.asStateFlow()
 
     init {
+        loadCategories()
         loadFamilyMembers()
+    }
+
+    private fun loadCategories() {
+        viewModelScope.launch {
+            categoryRepository.seedDefaultCategoriesIfEmpty()
+            categoryRepository.observeCategories().collect { categories ->
+                val current = _uiState.value
+                val selected = current.selectedCategory
+                    ?: categories.find { it.name == Category.OTHER.name }
+                _uiState.value = current.copy(
+                    categories = categories,
+                    selectedCategory = selected
+                )
+            }
+        }
     }
 
     private fun loadFamilyMembers() {
@@ -90,8 +110,8 @@ class AddExpenseViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(title = value)
     }
 
-    fun updateCategory(category: Category) {
-        _uiState.value = _uiState.value.copy(category = category)
+    fun updateCategory(category: CategoryEntity) {
+        _uiState.value = _uiState.value.copy(selectedCategory = category)
     }
 
     fun updateDate(date: Date) {
@@ -142,12 +162,18 @@ class AddExpenseViewModel @Inject constructor(
                 return@launch
             }
 
+            val selectedCat = state.selectedCategory
+            if (selectedCat == null) {
+                _uiState.value = state.copy(isSaving = false, error = "Select a category")
+                return@launch
+            }
+
             val expense = Expense(
                 familyId = user.familyId,
                 title = state.title.trim(),
                 amount = amount,
                 currency = Constants.DEFAULT_CURRENCY,
-                category = state.category.name,
+                category = selectedCat.name,
                 paidBy = state.paidByUserId,
                 paidByName = state.paidByUserName,
                 isRecurring = state.isRecurring,
@@ -155,6 +181,12 @@ class AddExpenseViewModel @Inject constructor(
                 recurringDay = if (state.isRecurring) state.recurringDay else null,
                 notes = state.notes.ifBlank { null },
                 date = Timestamp(state.date)
+            )
+
+            categoryRepository.ensureCategoryExists(
+                name = selectedCat.name,
+                label = selectedCat.label,
+                icon = selectedCat.icon
             )
 
             expenseRepository.addExpense(expense)
@@ -171,10 +203,11 @@ class AddExpenseViewModel @Inject constructor(
     }
 
     fun resetForm() {
+        val categories = _uiState.value.categories
         _uiState.value = _uiState.value.copy(
             amount = "",
             title = "",
-            category = Category.OTHER,
+            selectedCategory = categories.find { it.name == Category.OTHER.name },
             date = Date(),
             paidByUserId = auth.currentUser?.uid.orEmpty(),
             paidByUserName = auth.currentUser?.displayName.orEmpty(),
