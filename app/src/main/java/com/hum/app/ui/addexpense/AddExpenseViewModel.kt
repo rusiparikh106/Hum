@@ -107,8 +107,14 @@ class AddExpenseViewModel @Inject constructor(
     }
 
     fun updateAmount(value: String) {
-        val filtered = value.filter { it.isDigit() || it == '.' }
-        _uiState.value = _uiState.value.copy(amount = filtered)
+        var hasDot = false
+        val sanitized = buildString {
+            for (c in value) {
+                if (c.isDigit()) append(c)
+                else if (c == '.' && !hasDot) { append(c); hasDot = true }
+            }
+        }
+        _uiState.value = _uiState.value.copy(amount = sanitized)
     }
 
     fun updateTitle(value: String) {
@@ -276,6 +282,9 @@ class AddExpenseViewModel @Inject constructor(
             amount = "",
             title = "",
             selectedCategory = categories.find { it.name == Category.OTHER.name },
+            showAddCategoryDialog = false,
+            newCategoryName = "",
+            isResolvingIcon = false,
             date = Date(),
             paidByUserId = auth.currentUser?.uid.orEmpty(),
             paidByUserName = auth.currentUser?.displayName.orEmpty(),

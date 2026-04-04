@@ -41,11 +41,19 @@ class CategoryIconAi @Inject constructor() {
         }
     }
 
-    private fun matchLocal(name: String): String? {
+    internal fun matchLocal(name: String): String? {
         val lower = name.lowercase()
-        return KEYWORD_MAP.entries.firstOrNull { (keywords, _) ->
-            keywords.any { it in lower }
-        }?.value
+        var bestEmoji: String? = null
+        var bestLength = 0
+        for ((keywords, emoji) in KEYWORD_MAP) {
+            for (keyword in keywords) {
+                if (keyword in lower && keyword.length > bestLength) {
+                    bestEmoji = emoji
+                    bestLength = keyword.length
+                }
+            }
+        }
+        return bestEmoji
     }
 
     companion object {
